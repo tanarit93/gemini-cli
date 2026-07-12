@@ -11,6 +11,8 @@ import {
   debugLogger,
   getChannelFromVersion,
   RELEASE_CHANNEL_STABILITY,
+  AuthType,
+  getAuthTypeFromEnv,
 } from '@google/gemini-cli-core';
 import type { LoadedSettings } from '../../config/settings.js';
 import { fileURLToPath } from 'node:url';
@@ -58,6 +60,14 @@ export async function checkForUpdates(
 ): Promise<UpdateObject | null> {
   try {
     if (!settings.merged.general.enableAutoUpdateNotification) {
+      return null;
+    }
+    const authType = getAuthTypeFromEnv();
+    if (
+      authType === AuthType.USE_OPENAI ||
+      authType === AuthType.USE_OLLAMA ||
+      authType === AuthType.USE_VLLM
+    ) {
       return null;
     }
     // Skip update check when running from source (development mode)

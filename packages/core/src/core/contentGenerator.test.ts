@@ -72,6 +72,21 @@ describe('getAuthTypeFromEnv', () => {
     expect(getAuthTypeFromEnv()).toBe(AuthType.COMPUTE_ADC);
   });
 
+  it('should detect USE_OPENAI when OPENAI_API_KEY is present', () => {
+    vi.stubEnv('OPENAI_API_KEY', 'fake-key');
+    expect(getAuthTypeFromEnv()).toBe(AuthType.USE_OPENAI);
+  });
+
+  it('should detect USE_OLLAMA when OLLAMA_BASE_URL is present', () => {
+    vi.stubEnv('OLLAMA_BASE_URL', 'fake-url');
+    expect(getAuthTypeFromEnv()).toBe(AuthType.USE_OLLAMA);
+  });
+
+  it('should detect USE_VLLM when VLLM_API_KEY is present', () => {
+    vi.stubEnv('VLLM_API_KEY', 'fake-key');
+    expect(getAuthTypeFromEnv()).toBe(AuthType.USE_VLLM);
+  });
+
   it('should return undefined when no matching env variables are set', () => {
     expect(getAuthTypeFromEnv()).toBeUndefined();
   });
@@ -161,6 +176,38 @@ describe('createContentGenerator', () => {
     expect(generator).toEqual(
       new LoggingContentGenerator(mockGenerator, mockConfig),
     );
+  });
+
+  it('should create an OpenAiContentGenerator when AuthType is USE_OPENAI', async () => {
+    const generator = await createContentGenerator(
+      {
+        authType: AuthType.USE_OPENAI,
+        apiKey: 'test-key',
+      },
+      mockConfig,
+    );
+    expect(generator).toBeInstanceOf(LoggingContentGenerator);
+  });
+
+  it('should create an OpenAiContentGenerator when AuthType is USE_OLLAMA', async () => {
+    const generator = await createContentGenerator(
+      {
+        authType: AuthType.USE_OLLAMA,
+      },
+      mockConfig,
+    );
+    expect(generator).toBeInstanceOf(LoggingContentGenerator);
+  });
+
+  it('should create an OpenAiContentGenerator when AuthType is USE_VLLM', async () => {
+    const generator = await createContentGenerator(
+      {
+        authType: AuthType.USE_VLLM,
+        apiKey: 'test-key',
+      },
+      mockConfig,
+    );
+    expect(generator).toBeInstanceOf(LoggingContentGenerator);
   });
 
   it('should create a GoogleGenAI content generator', async () => {

@@ -15,6 +15,8 @@ import {
   debugLogger,
   getChannelFromVersion,
   RELEASE_CHANNEL_STABILITY,
+  AuthType,
+  getAuthTypeFromEnv,
 } from '@google/gemini-cli-core';
 
 let _updateInProgress = false;
@@ -83,6 +85,15 @@ export function handleAutoUpdate(
   }
 
   if (!settings.merged.general.enableAutoUpdateNotification) {
+    return;
+  }
+
+  const authType = getAuthTypeFromEnv();
+  if (
+    authType === AuthType.USE_OPENAI ||
+    authType === AuthType.USE_OLLAMA ||
+    authType === AuthType.USE_VLLM
+  ) {
     return;
   }
 

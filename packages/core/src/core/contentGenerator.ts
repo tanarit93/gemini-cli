@@ -30,6 +30,7 @@ import { determineSurface } from '../utils/surface.js';
 import { RecordingContentGenerator } from './recordingContentGenerator.js';
 import { getVersion, resolveModel } from '../../index.js';
 import type { LlmRole } from '../telemetry/llmRole.js';
+import { OpenAiContentGenerator } from './openAiContentGenerator.js';
 
 /**
  * Interface abstracting the core functionalities for generating content and counting tokens.
@@ -65,6 +66,9 @@ export enum AuthType {
   LEGACY_CLOUD_SHELL = 'cloud-shell',
   COMPUTE_ADC = 'compute-default-credentials',
   GATEWAY = 'gateway',
+  USE_OPENAI = 'openai',
+  USE_OLLAMA = 'ollama',
+  USE_VLLM = 'vllm',
 }
 
 /**
@@ -84,6 +88,15 @@ export function getAuthTypeFromEnv(): AuthType | undefined {
   }
   if (process.env['GOOGLE_GEMINI_BASE_URL']) {
     return AuthType.GATEWAY;
+  }
+  if (process.env['OPENAI_API_KEY'] || process.env['OPENAI_BASE_URL']) {
+    return AuthType.USE_OPENAI;
+  }
+  if (process.env['OLLAMA_BASE_URL']) {
+    return AuthType.USE_OLLAMA;
+  }
+  if (process.env['VLLM_API_KEY'] || process.env['VLLM_BASE_URL']) {
+    return AuthType.USE_VLLM;
   }
   if (process.env['GEMINI_API_KEY']) {
     return AuthType.USE_GEMINI;
@@ -187,6 +200,32 @@ export async function createContentGeneratorConfig(
       apiKey || process.env['GEMINI_API_KEY'] || '';
     contentGeneratorConfig.vertexai = false;
 
+    return contentGeneratorConfig;
+  }
+
+  if (authType === AuthType.USE_OPENAI) {
+    contentGeneratorConfig.apiKey =
+      apiKey || process.env['OPENAI_API_KEY'] || 'dummy-openai-key';
+    contentGeneratorConfig.baseUrl =
+      baseUrl || process.env['OPENAI_BASE_URL'] || undefined;
+    contentGeneratorConfig.vertexai = false;
+    return contentGeneratorConfig;
+  }
+
+  if (authType === AuthType.USE_OLLAMA) {
+    contentGeneratorConfig.apiKey = apiKey || 'dummy-ollama-key';
+    contentGeneratorConfig.baseUrl =
+      baseUrl || process.env['OLLAMA_BASE_URL'] || 'http://localhost:11434/v1';
+    contentGeneratorConfig.vertexai = false;
+    return contentGeneratorConfig;
+  }
+
+  if (authType === AuthType.USE_VLLM) {
+    contentGeneratorConfig.apiKey =
+      apiKey || process.env['VLLM_API_KEY'] || 'dummy-vllm-key';
+    contentGeneratorConfig.baseUrl =
+      baseUrl || process.env['VLLM_BASE_URL'] || undefined;
+    contentGeneratorConfig.vertexai = false;
     return contentGeneratorConfig;
   }
 
@@ -377,6 +416,18 @@ export async function createContentGenerator(
       });
       return new LoggingContentGenerator(googleGenAI.models, gcConfig);
     }
+
+    if (
+      config.authType === AuthType.USE_OPENAI ||
+      config.authType === AuthType.USE_OLLAMA ||
+      config.authType === AuthType.USE_VLLM
+    ) {
+      return new LoggingContentGenerator(
+        new OpenAiContentGenerator(config),
+        gcConfig,
+      );
+    }
+
     throw new Error(
       `Error creating contentGenerator: Unsupported authType: ${config.authType}`,
     );

@@ -75,6 +75,21 @@ export function AuthDialog({
       value: AuthType.USE_VERTEX_AI,
       key: AuthType.USE_VERTEX_AI,
     },
+    {
+      label: 'OpenAI (Custom Base URL)',
+      value: AuthType.USE_OPENAI,
+      key: AuthType.USE_OPENAI,
+    },
+    {
+      label: 'Ollama',
+      value: AuthType.USE_OLLAMA,
+      key: AuthType.USE_OLLAMA,
+    },
+    {
+      label: 'vLLM',
+      value: AuthType.USE_VLLM,
+      key: AuthType.USE_VLLM,
+    },
   ];
 
   if (settings.merged.security.auth.enforcedType) {
