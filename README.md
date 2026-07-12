@@ -208,6 +208,40 @@ export GOOGLE_GENAI_USE_VERTEXAI=true
 gemini
 ```
 
+### Option 4: OpenAI / Ollama / vLLM (OpenAI-Compatible Providers)
+
+**✨ Best for:** Developers running local models (e.g., Ollama, vLLM) or using
+OpenAI endpoints.
+
+#### For Ollama (Local Execution)
+
+Set the Ollama base URL and model. Ollama doesn't require an API key (a
+placeholder key will be auto-injected):
+
+```bash
+export OLLAMA_BASE_URL="http://localhost:11434/v1"
+gemini --model qwen2.5-coder:7b
+```
+
+#### For vLLM
+
+Set your vLLM server endpoint and specify the model name deployed on your vLLM
+instance:
+
+```bash
+export VLLM_BASE_URL="http://localhost:8000/v1"
+gemini --model qwen2.5-coder:32b
+```
+
+#### For OpenAI
+
+Set your OpenAI API key and specify any OpenAI chat model (e.g., `gpt-4o`):
+
+```bash
+export OPENAI_API_KEY="sk-..."
+gemini --model gpt-4o
+```
+
 For Google Workspace accounts and other authentication methods, see the
 [authentication guide](https://www.geminicli.com/docs/get-started/authentication).
 
@@ -217,7 +251,28 @@ For Google Workspace accounts and other authentication methods, see the
 
 #### Start in current directory
 
+The CLI executes in your current working directory. You can easily switch the
+workspace by cd-ing to any directory:
+
 ```bash
+gemini
+```
+
+#### Change Workspace Directory
+
+To run the CLI on a different project workspace, either `cd` into that project
+and execute the CLI using its relative path, or link it globally:
+
+```bash
+# Method A: cd and run via Node absolute path
+cd /path/to/other-project
+node /path/to/gemini-cli/packages/cli/dist/index.js
+
+# Method B: npm link (Run globally)
+cd /path/to/gemini-cli
+npm link
+# Then you can run from any folder:
+cd /path/to/other-project
 gemini
 ```
 
