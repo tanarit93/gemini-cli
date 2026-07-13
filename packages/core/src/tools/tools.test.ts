@@ -6,6 +6,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import {
+  BaseDeclarativeTool,
   BaseToolInvocation,
   DeclarativeTool,
   hasCycleInSchema,
@@ -15,6 +16,7 @@ import {
 } from './tools.js';
 import { ToolErrorType } from './tool-error.js';
 import { createMockMessageBus } from '../test-utils/mock-message-bus.js';
+import type { MessageBus } from '../confirmation-bus/message-bus.js';
 import { ReadFileTool } from './read-file.js';
 import { makeFakeConfig } from '../test-utils/config.js';
 
@@ -244,6 +246,130 @@ describe('hasCycleInSchema', () => {
 
   it('should return false for an empty schema', () => {
     expect(hasCycleInSchema({})).toBe(false);
+  });
+});
+
+describe('BaseDeclarativeTool parameter normalization', () => {
+  const bus = createMockMessageBus();
+
+  class MockToolInvocation
+    implements ToolInvocation<Record<string, unknown>, ToolResult>
+  {
+    constructor(
+      readonly params: Record<string, unknown>,
+      private readonly executeFn: () => Promise<ToolResult>,
+    ) {}
+
+    getDescription(): string {
+      return 'A mock invocation';
+    }
+
+    toolLocations() {
+      return [];
+    }
+
+    shouldConfirmExecute(): Promise<false> {
+      return Promise.resolve(false);
+    }
+
+    execute(): Promise<ToolResult> {
+      return this.executeFn();
+    }
+  }
+
+  class MockBaseTool extends BaseDeclarativeTool<
+    Record<string, unknown>,
+    ToolResult
+  > {
+    constructor(parameterSchema: object) {
+      super(
+        'mock-tool',
+        'Mock Tool',
+        'A tool for testing parameter normalization',
+        Kind.Other,
+        parameterSchema,
+        bus,
+      );
+    }
+
+    protected override createInvocation(
+      params: Record<string, unknown>,
+      _messageBus: MessageBus,
+      _toolName?: string,
+      _toolDisplayName?: string,
+    ): ToolInvocation<Record<string, unknown>, ToolResult> {
+      return new MockToolInvocation(params, vi.fn());
+    }
+  }
+
+  it('should map path to file_path if file_path is expected and path is provided', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        file_path: { type: 'string' },
+        content: { type: 'string' },
+      },
+      required: ['file_path'],
+    };
+    const tool = new MockBaseTool(schema);
+    const params = { path: 'hello.txt', content: 'world' };
+    const err = tool.validateToolParams(params);
+    expect(err).toBeNull();
+    // Verify it mutated the params object
+    expect(params).toHaveProperty('file_path', 'hello.txt');
+  });
+
+  it('should map path to dir_path if dir_path is expected and path is provided', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        dir_path: { type: 'string' },
+      },
+      required: ['dir_path'],
+    };
+    const tool = new MockBaseTool(schema);
+    const params = { path: '/some/dir' };
+    const err = tool.validateToolParams(params);
+    expect(err).toBeNull();
+    expect(params).toHaveProperty('dir_path', '/some/dir');
+  });
+
+  it('should not map path to file_path if path is already defined in the schema', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        file_path: { type: 'string' },
+        path: { type: 'string' },
+      },
+      required: ['file_path', 'path'],
+    };
+    const tool = new MockBaseTool(schema);
+    const params = { path: 'original_path', file_path: 'original_file_path' };
+    const err = tool.validateToolParams(params);
+    expect(err).toBeNull();
+    expect(params.file_path).toBe('original_file_path');
+    expect(params.path).toBe('original_path');
+  });
+
+  it('should map path or filename to plan_filename if plan_filename is expected', () => {
+    const schema = {
+      type: 'object',
+      properties: {
+        plan_filename: { type: 'string' },
+      },
+      required: ['plan_filename'],
+    };
+    const tool = new MockBaseTool(schema);
+
+    const params1 = { path: 'my-plan.md' };
+    const err1 = tool.validateToolParams(params1);
+    expect(err1).toBeNull();
+    expect(params1).toHaveProperty('plan_filename', 'my-plan.md');
+
+    const params2 = { filename: 'another-plan.md' };
+    const err2 = tool.validateToolParams(params2);
+    expect(err2).toBeNull();
+    expect(params2).toHaveProperty('plan_filename', 'another-plan.md');
   });
 });
 

@@ -694,6 +694,37 @@ export abstract class BaseDeclarativeTool<
   }
 
   override validateToolParams(params: TParams): string | null {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion
+    const record = params as Record<string, unknown>;
+    const schema = this.schema.parametersJsonSchema;
+    if (isRecord(schema)) {
+      const properties = schema['properties'];
+      if (isRecord(properties)) {
+        if ('path' in record) {
+          if (
+            'file_path' in properties &&
+            !('path' in properties) &&
+            !('file_path' in record)
+          ) {
+            record['file_path'] = record['path'];
+          } else if (
+            'dir_path' in properties &&
+            !('path' in properties) &&
+            !('dir_path' in record)
+          ) {
+            record['dir_path'] = record['path'];
+          }
+        }
+        if ('plan_filename' in properties && !('plan_filename' in record)) {
+          if ('path' in record && !('path' in properties)) {
+            record['plan_filename'] = record['path'];
+          } else if ('filename' in record && !('filename' in properties)) {
+            record['plan_filename'] = record['filename'];
+          }
+        }
+      }
+    }
+
     const errors = SchemaValidator.validate(
       this.schema.parametersJsonSchema,
       params,
