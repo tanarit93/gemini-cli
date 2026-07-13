@@ -16,14 +16,14 @@ export async function waitFor(
   assertion: () => void | Promise<void>,
   { timeout = 2000, interval = 50 } = {},
 ): Promise<void> {
-  const startTime = Date.now();
+  const startTime = performance.now();
 
   while (true) {
     try {
       await assertion();
       return;
     } catch (error) {
-      if (Date.now() - startTime > timeout) {
+      if (performance.now() - startTime > timeout) {
         throw error;
       }
 

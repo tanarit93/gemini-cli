@@ -207,6 +207,29 @@ class XtermStdout extends EventEmitter {
   };
 
   async waitUntilReady() {
+    // Ensure all pending writes to the terminal are processed.
+    await this.queue.promise;
+
+    const isMatch = () => {
+      const currentFrame = stripAnsi(
+        this.lastFrame({ allowEmpty: true }),
+      ).trim();
+      const expectedFrame = this.normalizeFrame(
+        stripAnsi(
+          (this.lastRenderStaticContent ?? '') + (this.lastRenderOutput ?? ''),
+        ),
+      ).trim();
+
+      if (expectedFrame === '...') {
+        return currentFrame !== '';
+      }
+      return currentFrame === expectedFrame;
+    };
+
+    if (isMatch()) {
+      return;
+    }
+
     const startRenderCount = this.renderCount;
     if (!vi.isFakeTimers()) {
       // Give Ink a chance to start its rendering loop
