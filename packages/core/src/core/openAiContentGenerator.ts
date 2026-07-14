@@ -69,6 +69,12 @@ interface OpenAiRequest {
           strict: boolean;
         };
       };
+  provider?: {
+    order?: string[];
+    allow_fallbacks?: boolean;
+    skips?: string[];
+    quantizations?: string[];
+  };
 }
 
 interface OpenAiResponseChoice {
@@ -333,6 +339,57 @@ export class OpenAiContentGenerator implements ContentGenerator {
         };
       } else {
         payload.response_format = { type: 'json_object' };
+      }
+    }
+
+    const isOpenRouter = this.config.baseUrl?.includes('openrouter.ai');
+    if (isOpenRouter) {
+      const orderEnv = process.env['OPENROUTER_PROVIDER_ORDER'];
+      const order = orderEnv
+        ? orderEnv
+            .split(',')
+            .map((p) => p.trim())
+            .filter(Boolean)
+        : undefined;
+      const finalOrder = order && order.length > 0 ? order : undefined;
+
+      const allowFallbacksEnv = process.env['OPENROUTER_ALLOW_FALLBACKS'];
+      const allow_fallbacks =
+        allowFallbacksEnv !== undefined && allowFallbacksEnv !== ''
+          ? allowFallbacksEnv === 'true'
+          : undefined;
+
+      const skipsEnv = process.env['OPENROUTER_PROVIDER_SKIPS'];
+      const skips = skipsEnv
+        ? skipsEnv
+            .split(',')
+            .map((p) => p.trim())
+            .filter(Boolean)
+        : undefined;
+      const finalSkips = skips && skips.length > 0 ? skips : undefined;
+
+      const quantizationsEnv = process.env['OPENROUTER_PROVIDER_QUANTIZATIONS'];
+      const quantizations = quantizationsEnv
+        ? quantizationsEnv
+            .split(',')
+            .map((p) => p.trim())
+            .filter(Boolean)
+        : undefined;
+      const finalQuantizations =
+        quantizations && quantizations.length > 0 ? quantizations : undefined;
+
+      if (
+        finalOrder ||
+        allow_fallbacks !== undefined ||
+        finalSkips ||
+        finalQuantizations
+      ) {
+        payload.provider = {
+          ...(finalOrder && { order: finalOrder }),
+          ...(allow_fallbacks !== undefined && { allow_fallbacks }),
+          ...(finalSkips && { skips: finalSkips }),
+          ...(finalQuantizations && { quantizations: finalQuantizations }),
+        };
       }
     }
 
