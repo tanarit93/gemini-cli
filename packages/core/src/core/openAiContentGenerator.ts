@@ -72,7 +72,7 @@ interface OpenAiRequest {
   provider?: {
     order?: string[];
     allow_fallbacks?: boolean;
-    skips?: string[];
+    ignore?: string[];
     quantizations?: string[];
   };
 }
@@ -359,14 +359,16 @@ export class OpenAiContentGenerator implements ContentGenerator {
           ? allowFallbacksEnv === 'true'
           : undefined;
 
-      const skipsEnv = process.env['OPENROUTER_PROVIDER_SKIPS'];
-      const skips = skipsEnv
-        ? skipsEnv
+      const ignoreEnv =
+        process.env['OPENROUTER_PROVIDER_IGNORE'] ||
+        process.env['OPENROUTER_PROVIDER_SKIPS'];
+      const ignore = ignoreEnv
+        ? ignoreEnv
             .split(',')
             .map((p) => p.trim())
             .filter(Boolean)
         : undefined;
-      const finalSkips = skips && skips.length > 0 ? skips : undefined;
+      const finalIgnore = ignore && ignore.length > 0 ? ignore : undefined;
 
       const quantizationsEnv = process.env['OPENROUTER_PROVIDER_QUANTIZATIONS'];
       const quantizations = quantizationsEnv
@@ -381,13 +383,13 @@ export class OpenAiContentGenerator implements ContentGenerator {
       if (
         finalOrder ||
         allow_fallbacks !== undefined ||
-        finalSkips ||
+        finalIgnore ||
         finalQuantizations
       ) {
         payload.provider = {
           ...(finalOrder && { order: finalOrder }),
           ...(allow_fallbacks !== undefined && { allow_fallbacks }),
-          ...(finalSkips && { skips: finalSkips }),
+          ...(finalIgnore && { ignore: finalIgnore }),
           ...(finalQuantizations && { quantizations: finalQuantizations }),
         };
       }

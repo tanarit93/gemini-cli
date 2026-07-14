@@ -19,6 +19,7 @@ describe('OpenAiContentGenerator - OpenRouter provider configuration', () => {
     vi.clearAllMocks();
     vi.stubEnv('OPENROUTER_PROVIDER_ORDER', '');
     vi.stubEnv('OPENROUTER_ALLOW_FALLBACKS', '');
+    vi.stubEnv('OPENROUTER_PROVIDER_IGNORE', '');
     vi.stubEnv('OPENROUTER_PROVIDER_SKIPS', '');
     vi.stubEnv('OPENROUTER_PROVIDER_QUANTIZATIONS', '');
   });
@@ -45,7 +46,7 @@ describe('OpenAiContentGenerator - OpenRouter provider configuration', () => {
       }),
     } as unknown as Response);
 
-    await generator.generateContent(dummyRequest, 'prompt-id', LlmRole.USER);
+    await generator.generateContent(dummyRequest, 'prompt-id', LlmRole.MAIN);
 
     expect(fetchWithTimeout).toHaveBeenCalledWith(
       expect.any(String),
@@ -58,7 +59,8 @@ describe('OpenAiContentGenerator - OpenRouter provider configuration', () => {
     );
 
     const callArgs = vi.mocked(fetchWithTimeout).mock.calls[0];
-    const bodyObj = JSON.parse(callArgs[2]!.body as string);
+    const bodyStr = callArgs && callArgs[2] ? callArgs[2].body : undefined;
+    const bodyObj = JSON.parse((bodyStr || '{}') as string);
     expect(bodyObj.provider).toBeUndefined();
   });
 
@@ -76,10 +78,11 @@ describe('OpenAiContentGenerator - OpenRouter provider configuration', () => {
       }),
     } as unknown as Response);
 
-    await generator.generateContent(dummyRequest, 'prompt-id', LlmRole.USER);
+    await generator.generateContent(dummyRequest, 'prompt-id', LlmRole.MAIN);
 
     const callArgs = vi.mocked(fetchWithTimeout).mock.calls[0];
-    const bodyObj = JSON.parse(callArgs[2]!.body as string);
+    const bodyStr = callArgs && callArgs[2] ? callArgs[2].body : undefined;
+    const bodyObj = JSON.parse((bodyStr || '{}') as string);
     expect(bodyObj.provider).toEqual({
       order: ['Together', 'DeepInfra', 'Lepton'],
     });
@@ -99,17 +102,18 @@ describe('OpenAiContentGenerator - OpenRouter provider configuration', () => {
       }),
     } as unknown as Response);
 
-    await generator.generateContent(dummyRequest, 'prompt-id', LlmRole.USER);
+    await generator.generateContent(dummyRequest, 'prompt-id', LlmRole.MAIN);
 
     const callArgs = vi.mocked(fetchWithTimeout).mock.calls[0];
-    const bodyObj = JSON.parse(callArgs[2]!.body as string);
+    const bodyStr = callArgs && callArgs[2] ? callArgs[2].body : undefined;
+    const bodyObj = JSON.parse((bodyStr || '{}') as string);
     expect(bodyObj.provider).toEqual({
       allow_fallbacks: false,
     });
   });
 
-  it('should include skips and quantizations when env variables are set', async () => {
-    vi.stubEnv('OPENROUTER_PROVIDER_SKIPS', 'Together');
+  it('should include ignore and quantizations when env variables are set', async () => {
+    vi.stubEnv('OPENROUTER_PROVIDER_IGNORE', 'Together');
     vi.stubEnv('OPENROUTER_PROVIDER_QUANTIZATIONS', 'int4, bf16');
     const generator = new OpenAiContentGenerator({
       apiKey: 'test-key',
@@ -123,13 +127,38 @@ describe('OpenAiContentGenerator - OpenRouter provider configuration', () => {
       }),
     } as unknown as Response);
 
-    await generator.generateContent(dummyRequest, 'prompt-id', LlmRole.USER);
+    await generator.generateContent(dummyRequest, 'prompt-id', LlmRole.MAIN);
 
     const callArgs = vi.mocked(fetchWithTimeout).mock.calls[0];
-    const bodyObj = JSON.parse(callArgs[2]!.body as string);
+    const bodyStr = callArgs && callArgs[2] ? callArgs[2].body : undefined;
+    const bodyObj = JSON.parse((bodyStr || '{}') as string);
     expect(bodyObj.provider).toEqual({
-      skips: ['Together'],
+      ignore: ['Together'],
       quantizations: ['int4', 'bf16'],
+    });
+  });
+
+  it('should fallback to map OPENROUTER_PROVIDER_SKIPS to ignore', async () => {
+    vi.stubEnv('OPENROUTER_PROVIDER_SKIPS', 'Lepton');
+    const generator = new OpenAiContentGenerator({
+      apiKey: 'test-key',
+      baseUrl: 'https://openrouter.ai/api/v1',
+    });
+
+    vi.mocked(fetchWithTimeout).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { role: 'assistant', content: 'Hi' } }],
+      }),
+    } as unknown as Response);
+
+    await generator.generateContent(dummyRequest, 'prompt-id', LlmRole.MAIN);
+
+    const callArgs = vi.mocked(fetchWithTimeout).mock.calls[0];
+    const bodyStr = callArgs && callArgs[2] ? callArgs[2].body : undefined;
+    const bodyObj = JSON.parse((bodyStr || '{}') as string);
+    expect(bodyObj.provider).toEqual({
+      ignore: ['Lepton'],
     });
   });
 
@@ -147,10 +176,11 @@ describe('OpenAiContentGenerator - OpenRouter provider configuration', () => {
       }),
     } as unknown as Response);
 
-    await generator.generateContent(dummyRequest, 'prompt-id', LlmRole.USER);
+    await generator.generateContent(dummyRequest, 'prompt-id', LlmRole.MAIN);
 
     const callArgs = vi.mocked(fetchWithTimeout).mock.calls[0];
-    const bodyObj = JSON.parse(callArgs[2]!.body as string);
+    const bodyStr = callArgs && callArgs[2] ? callArgs[2].body : undefined;
+    const bodyObj = JSON.parse((bodyStr || '{}') as string);
     expect(bodyObj.provider).toBeUndefined();
   });
 });
