@@ -286,7 +286,12 @@ export function applyModelSelection(
   options: { consumeAttempt?: boolean } = {},
 ): { model: string; config: GenerateContentConfig; maxAttempts?: number } {
   const resolved = config.modelConfigService.getResolvedConfig(modelConfigKey);
-  const model = resolved.model;
+  let model = resolved.model;
+
+  if (config.getContentGeneratorConfig()?.authType === 'openai') {
+    model = config.getActiveModel?.() ?? config.getModel?.() ?? model;
+  }
+
   const selection = selectModelForAvailability(config, model);
 
   if (!selection) {

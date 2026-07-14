@@ -459,6 +459,29 @@ export class OpenAiContentGenerator implements ContentGenerator {
     return geminiResponse as unknown as GenerateContentResponse;
   }
 
+  private async throwApiError(response: Response): Promise<never> {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    let message = errorText;
+    try {
+      const parsed = JSON.parse(errorText) as unknown;
+      if (parsed && typeof parsed === 'object') {
+        if (
+          'error' in parsed &&
+          parsed.error &&
+          typeof parsed.error === 'object' &&
+          'message' in parsed.error
+        ) {
+          message = String(parsed.error.message);
+        } else if ('message' in parsed) {
+          message = String(parsed.message);
+        }
+      }
+    } catch {
+      // ignore
+    }
+    throw new Error(`OpenAI API Error (${response.status}): ${message}`);
+  }
+
   async generateContent(
     request: GenerateContentParameters,
     _userPromptId: string,
@@ -477,8 +500,7 @@ export class OpenAiContentGenerator implements ContentGenerator {
     });
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`OpenAI API Error (${response.status}): ${errorText}`);
+      await this.throwApiError(response);
     }
 
     const rawJson = (await response.json()) as unknown;
@@ -505,8 +527,7 @@ export class OpenAiContentGenerator implements ContentGenerator {
     });
 
     if (!response.ok) {
-      const errorText = await response.text().catch(() => 'Unknown error');
-      throw new Error(`OpenAI API Error (${response.status}): ${errorText}`);
+      await this.throwApiError(response);
     }
 
     if (!response.body) {

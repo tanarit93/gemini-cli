@@ -109,6 +109,33 @@ describe('parseAndFormatApiError', () => {
     expect(result).toContain(vertexMessage);
   });
 
+  it('should parse generic or OpenAI/OpenRouter error JSON response from a string', () => {
+    const errorMessage =
+      'OpenAI API Error (400): {"error":{"message":"Please set up a billing account.","provider_name":"Google"}}';
+    const result = parseAndFormatApiError(errorMessage);
+    expect(result).toBe(
+      '[API Error: OpenAI API Error (400): Please set up a billing account.]',
+    );
+  });
+
+  it('should parse generic or OpenAI/OpenRouter error JSON response from an Error message', () => {
+    const error = new Error(
+      'OpenAI API Error (400): {"error":{"message":"Quota exceeded."}}',
+    );
+    const result = parseAndFormatApiError(error);
+    expect(result).toBe('[API Error: OpenAI API Error (400): Quota exceeded.]');
+  });
+
+  it('should parse OpenAI/OpenRouter flat message error response from an Error message', () => {
+    const error = new Error(
+      'OpenAI API Error (400): {"message":"Flat message structure."}',
+    );
+    const result = parseAndFormatApiError(error);
+    expect(result).toBe(
+      '[API Error: OpenAI API Error (400): Flat message structure.]',
+    );
+  });
+
   it('should handle an unknown error type', () => {
     const error = 12345;
     const expected = '[API Error: An unknown error occurred.]';

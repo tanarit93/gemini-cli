@@ -39,6 +39,58 @@ export function parseAndFormatApiError(
   currentModel?: string,
   fallbackModel?: string,
 ): string {
+  // If the error object has a message property containing a JSON string, let's extract it first.
+  if (
+    error &&
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof error.message === 'string'
+  ) {
+    const message = error.message;
+    const jsonStart = message.indexOf('{');
+    if (jsonStart !== -1) {
+      const jsonString = message.substring(jsonStart);
+      try {
+        const parsed = JSON.parse(jsonString) as unknown;
+        if (parsed && typeof parsed === 'object') {
+          let finalMessage = '';
+          if (
+            'error' in parsed &&
+            parsed.error &&
+            typeof parsed.error === 'object' &&
+            'message' in parsed.error
+          ) {
+            finalMessage = String(parsed.error.message);
+          } else if ('message' in parsed) {
+            finalMessage = String(parsed.message);
+          }
+          if (finalMessage) {
+            const prefix = message.substring(0, jsonStart);
+            let text = `[API Error: ${prefix}${finalMessage}]`;
+            const status =
+              'status' in error && typeof error.status === 'number'
+                ? error.status
+                : undefined;
+            const code =
+              'error' in parsed &&
+              parsed.error &&
+              typeof parsed.error === 'object' &&
+              'code' in parsed.error &&
+              typeof parsed.error.code === 'number'
+                ? parsed.error.code
+                : undefined;
+            if (status === 429 || code === 429) {
+              text += getRateLimitMessage(authType, fallbackModel);
+            }
+            return text;
+          }
+        }
+      } catch {
+        // ignore, fall through
+      }
+    }
+  }
+
   if (isStructuredError(error)) {
     let text = `[API Error: ${error.message}]`;
     if (error.status === 429) {
@@ -75,6 +127,24 @@ export function parseAndFormatApiError(
         }
         return text;
       }
+
+      if (parsedError && typeof parsedError === 'object') {
+        let finalMessage = '';
+        if (
+          'error' in parsedError &&
+          parsedError.error &&
+          typeof parsedError.error === 'object' &&
+          'message' in parsedError.error
+        ) {
+          finalMessage = String(parsedError.error.message);
+        } else if ('message' in parsedError) {
+          finalMessage = String(parsedError.message);
+        }
+        if (finalMessage) {
+          const prefix = error.substring(0, jsonStart);
+          return `[API Error: ${prefix}${finalMessage}]`;
+        }
+      }
     } catch {
       // Not a valid JSON, fall through and return the original message.
     }
@@ -86,6 +156,9 @@ export function parseAndFormatApiError(
   }
 
   try {
+    if (typeof error !== 'object' || error === null) {
+      return '[API Error: An unknown error occurred.]';
+    }
     return `[API Error: An unknown error occurred. Details: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}]`;
   } catch {
     return '[API Error: An unknown error occurred.]';

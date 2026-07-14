@@ -183,4 +183,65 @@ describe('OpenAiContentGenerator - OpenRouter provider configuration', () => {
     const bodyObj = JSON.parse((bodyStr || '{}') as string);
     expect(bodyObj.provider).toBeUndefined();
   });
+
+  it('should throw parsed error on non-ok generateContent response with JSON error', async () => {
+    const generator = new OpenAiContentGenerator({
+      apiKey: 'test-key',
+      baseUrl: 'https://api.openai.com/v1',
+    });
+
+    vi.mocked(fetchWithTimeout).mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: async () =>
+        JSON.stringify({
+          error: {
+            message: 'Please set up a billing account.',
+          },
+        }),
+    } as unknown as Response);
+
+    await expect(
+      generator.generateContent(dummyRequest, 'prompt-id', LlmRole.MAIN),
+    ).rejects.toThrow(
+      'OpenAI API Error (400): Please set up a billing account.',
+    );
+  });
+
+  it('should throw parsed error on non-ok generateContentStream response with JSON error', async () => {
+    const generator = new OpenAiContentGenerator({
+      apiKey: 'test-key',
+      baseUrl: 'https://api.openai.com/v1',
+    });
+
+    vi.mocked(fetchWithTimeout).mockResolvedValue({
+      ok: false,
+      status: 429,
+      text: async () =>
+        JSON.stringify({
+          message: 'Rate limit exceeded.',
+        }),
+    } as unknown as Response);
+
+    await expect(
+      generator.generateContentStream(dummyRequest, 'prompt-id', LlmRole.MAIN),
+    ).rejects.toThrow('OpenAI API Error (429): Rate limit exceeded.');
+  });
+
+  it('should throw raw text on non-ok response with plain text error', async () => {
+    const generator = new OpenAiContentGenerator({
+      apiKey: 'test-key',
+      baseUrl: 'https://api.openai.com/v1',
+    });
+
+    vi.mocked(fetchWithTimeout).mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: async () => 'Internal Server Error',
+    } as unknown as Response);
+
+    await expect(
+      generator.generateContent(dummyRequest, 'prompt-id', LlmRole.MAIN),
+    ).rejects.toThrow('OpenAI API Error (500): Internal Server Error');
+  });
 });
